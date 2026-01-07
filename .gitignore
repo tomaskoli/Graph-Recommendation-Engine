@@ -52,3 +52,13 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Local environment overrides (may contain secrets)
+appsettings.Development.json
+
+# Environment files with secrets
+.env
+!.env.example
+
+# User secrets (if not using dotnet user-secrets)
+secrets.json

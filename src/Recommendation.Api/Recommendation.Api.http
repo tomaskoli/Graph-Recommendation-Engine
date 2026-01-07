@@ -1,0 +1,97 @@
+@baseUrl = http://localhost:5188
+@accept = application/json
+
+### ========================================
+### Segments
+### ========================================
+
+### Get all catalog segments
+GET {{baseUrl}}/api/segments?page=1&pageSize=20
+Accept: {{accept}}
+
+###
+
+### Get categories by segment (root categories with hierarchy)
+GET {{baseUrl}}/api/segments/1/categories?page=1&pageSize=20
+Accept: {{accept}}
+
+###
+
+### ========================================
+### Categories
+### ========================================
+
+### Get all root level categories (with hierarchy and segment info)
+GET {{baseUrl}}/api/categories?page=1&pageSize=20
+Accept: {{accept}}
+
+###
+
+### Get category by ID (with full hierarchy and segment info)
+GET {{baseUrl}}/api/categories/1
+Accept: {{accept}}
+
+###
+
+### Get products by category
+GET {{baseUrl}}/api/categories/1/products?page=1&pageSize=20
+Accept: {{accept}}
+
+###
+
+### ========================================
+### Products
+### ========================================
+
+###
+
+### Get product with many parameters
+GET {{baseUrl}}/api/products/1
+Accept: {{accept}}
+
+###
+
+### Get related products for a product (based on shared categories)
+GET {{baseUrl}}/api/products/1/related?page=1&pageSize=10
+Accept: {{accept}}
+
+###
+
+### ========================================
+### Recommendations (GDS-powered similarity)
+### ========================================
+
+### Get recommendations for a product
+# Note: Run deploy/scripts/compute-similarity.cypher first
+GET {{baseUrl}}/api/recommendations?productId=1&page=1&pageSize=10
+Accept: {{accept}}
+
+###
+
+### Get recommendations for product 2
+GET {{baseUrl}}/api/recommendations?productId=2&page=1&pageSize=10
+Accept: {{accept}}
+
+###
+
+### Get recommendations page 2 (for large result sets)
+GET {{baseUrl}}/api/recommendations?productId=1&page=2&pageSize=10
+Accept: {{accept}}
+
+###
+
+### ========================================
+### Search (Global autocomplete)
+### ========================================
+
+### Search for products, categories, and brands
+GET {{baseUrl}}/api/search?q=phone&limit=5
+Accept: {{accept}}
+
+###
+
+### Search with different term
+GET {{baseUrl}}/api/search?q=sport&limit=10
+Accept: {{accept}}
+
+###

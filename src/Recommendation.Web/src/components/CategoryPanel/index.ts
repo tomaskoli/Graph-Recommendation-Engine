@@ -1,0 +1,2 @@
+export { CategoryPanel } from './CategoryPanel';
+
