@@ -1,0 +1,40 @@
+name: devnet-services
+
+services:
+  # Recommendation API
+  recommendation-api:
+    build:
+      context: ../../
+      dockerfile: src/Recommendation.Api/Dockerfile
+    container_name: recommendation-api
+    ports:
+      - "5206:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Neo4j__Uri=neo4j://neo4j:7687
+      - Neo4j__Username=neo4j
+      - Neo4j__Password=12345678
+      - Neo4j__Database=recommendation
+      - ConnectionStrings__Redis=redis:6379
+    networks:
+      - devnet
+
+  # Recommendation Web (React Frontend)
+  recommendation-web:
+    build:
+      context: ../../
+      dockerfile: src/Recommendation.Web/Dockerfile
+    container_name: recommendation-web
+    ports:
+      - "5173:80"
+    environment:
+      - API_URL=http://recommendation-api:8080
+    depends_on:
+      - recommendation-api
+    networks:
+      - devnet
+
+networks:
+  devnet:
+    external: true
+

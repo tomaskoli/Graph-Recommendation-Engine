@@ -1,0 +1,37 @@
+.recommendation-list {
+  margin-top: 2rem;
+}
+
+.recommendation-list__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recommendation-list__title::before {
+  content: '✨';
+}
+
+.recommendation-list__scroll {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+}
+
+.recommendation-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .recommendation-list__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+

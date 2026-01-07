@@ -1,0 +1,126 @@
+.category-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.category-panel--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-secondary);
+}
+
+.category-panel__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.category-panel__list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.category-item__row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  transition: background 0.1s ease;
+}
+
+.category-item__row:hover {
+  background: var(--hover-bg);
+}
+
+.category-item__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.category-item__toggle:hover {
+  color: var(--accent);
+}
+
+.category-item__arrow {
+  font-size: 0.6rem;
+  transition: transform 0.15s ease;
+}
+
+.category-item__arrow--expanded {
+  transform: rotate(90deg);
+}
+
+.category-item__spacer {
+  width: 1.5rem;
+  flex-shrink: 0;
+}
+
+.category-item__name {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-item__name:hover {
+  color: var(--accent);
+}
+
+.category-item__count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.category-item__children {
+  border-left: 1px solid var(--border-color);
+  margin-left: 1.5rem;
+}
+
+/* Depth-based styling */
+.category-item__row--depth-0 .category-item__name {
+  font-weight: 500;
+}
+
+.category-item__row--depth-1 .category-item__name {
+  font-size: 0.875rem;
+}
+
+.category-item__row--depth-2 .category-item__name,
+.category-item__row--depth-3 .category-item__name {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.category-item__row--depth-2 .category-item__name:hover,
+.category-item__row--depth-3 .category-item__name:hover {
+  color: var(--accent);
+}
+

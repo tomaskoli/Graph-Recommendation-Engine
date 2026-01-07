@@ -1,0 +1,66 @@
+.category-tree {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.category-tree__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.category-tree__list,
+.category-tree__sublist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.category-tree__item {
+  margin: 0.25rem 0;
+}
+
+.category-tree__button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+}
+
+.category-tree__button:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.category-tree__button--selected {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.category-tree__icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.category-tree__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

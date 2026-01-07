@@ -1,0 +1,49 @@
+name: devnet-neo4j
+
+services:
+  neo4j:
+    image: neo4j:enterprise
+    container_name: neo4j
+    ports:
+      - "7474:7474"   # HTTP (Neo4j Browser)
+      - "7687:7687"   # Bolt
+    environment:
+      # --- Enterprise license (required for EE images) ---
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"  # required to start EE image
+
+      # --- Credentials ---
+      NEO4J_AUTH: "neo4j/12345678"
+
+      # --- Force Block format for new DBs (EE) ---
+      # (EE 5.22+ defaults new DBs to 'block', but we set it explicitly.)
+      NEO4J_db_format: "block"
+
+      # --- Plugins (auto-download into /plugins) ---
+      NEO4J_PLUGINS: '["apoc","graph-data-science","genai"]'
+
+      # --- Procedure security as requested ---
+      NEO4J_dbms_security_procedures_unrestricted: "my.extensions.example,my.procedures.*,apoc.*,gds.*,genai.*"
+      NEO4J_dbms_security_procedures_allowlist: "apoc.coll.*,apoc.load.*,gds.*,apoc.*,genai.*"
+      
+      
+      # --- Prometheus metrics (EE) ---
+      # Enable Prometheus exporter
+      NEO4J_server_metrics_prometheus_enabled: "true"
+      # Bind to all interfaces so the host can scrape it
+      NEO4J_server_metrics_prometheus_endpoint: "0.0.0.0:2004"
+
+      NEO4J_server_memory_heap_initial__size: "12G"
+      NEO4J_server_memory_heap_max__size: "12G"
+      NEO4J_dbms_memory_transaction_total_max: "12G"
+
+    volumes:
+      - "C:/Users/tomas.kolinsky/graphrag/data:/data"
+      - "C:/Users/tomas.kolinsky/graphrag/logs:/logs"
+      - "C:/Users/tomas.kolinsky/graphrag/plugins:/plugins"
+      - "C:/Users/tomas.kolinsky/graphrag/import:/import"
+    networks:
+      - devnet
+      
+networks:
+  devnet:
+    external: true
