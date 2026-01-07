@@ -1,6 +1,6 @@
 # Graph Recommendation Engine
 
-A microservice architecture for **product recommendations** using graph-based relationships. Built with Neo4j Graph Data Science (GDS).
+**Product recommendation** app using Neo4j Graph Data Science (GDS).
 
 ## Tech Stack
 
@@ -199,8 +199,6 @@ docker-compose -f deploy/Docker/docker-compose.services.yml up -d
 
 ## Documentation
 
-- [Architecture](doc/ARCHITECTURE.md) - System design and data flow
-- [API Reference](doc/RECOMMENDATION_API.md) - Endpoint documentation
 - [Web Frontend](doc/RECOMMENDATION_WEB.md) - React frontend documentation
 
 ## License
