@@ -200,6 +200,7 @@ docker-compose -f deploy/Docker/docker-compose.services.yml up -d
 ## Documentation
 
 - [Web Frontend](doc/RECOMMENDATION_WEB.md) - React frontend documentation
+- [Graph Schema](doc/GRAPH-SCHEMA.md) -  Neo4j graph schema documentation
 
 ## License
 
