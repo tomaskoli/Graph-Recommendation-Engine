@@ -82,19 +82,19 @@ Graph-Recommendation-Engine/
 ### API
 | Package | Version | Purpose |
 |---------|---------|---------|
-| MediatR | 14.0.0 | CQRS in-process messaging |
+| MediatR | 14.2.0 | CQRS in-process messaging |
 | FluentResults | 4.0.0 | Result pattern |
 | FluentValidation | 12.1.1 | Request validation |
-| Neo4j.Driver | 5.28.4 | Neo4j client |
-| StackExchange.Redis | 2.10.1 | Redis client |
+| Neo4j.Driver | 6.3.0 | Neo4j client |
+| StackExchange.Redis | 3.1.0 | Redis client |
 | Scrutor | 7.0.0 | Decorator registration |
-| Swashbuckle.AspNetCore | 10.1.0 | Swagger/OpenAPI |
+| Swashbuckle.AspNetCore | 10.2.3 | Swagger/OpenAPI |
 
 ### Aspire
 | Package | Version | Purpose |
 |---------|---------|---------|
-| Aspire.AppHost.Sdk | 13.1.0 | Orchestration SDK |
-| Aspire.Hosting.Redis | 13.1.0 | Redis resource |
+| Aspire.AppHost.Sdk | 13.4.6 | Orchestration SDK |
+| Aspire.Hosting.Redis | 13.4.6 | Redis resource |
 
 ## API Endpoints
 
