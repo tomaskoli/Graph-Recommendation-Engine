@@ -201,6 +201,7 @@ docker-compose -f deploy/Docker/docker-compose.services.yml up -d
 
 - [Web Frontend](doc/RECOMMENDATION_WEB.md) - React frontend documentation
 - [Graph Schema](doc/GRAPH-SCHEMA.md) -  Neo4j graph schema documentation
+- [Spark Pipeline](doc/SPARK-PIPELINE.md) - Spark co-purchase pipeline specification
 
 ## License
 

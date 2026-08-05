@@ -1,0 +1,84 @@
+# Data for generate_catalog.py
+
+segments:
+  - Electronics
+  - Home & Living
+  - Fashion
+  - Sports & Outdoors
+  - Beauty & Health
+
+# segment -> root category -> leaf categories
+category_tree:
+  Electronics:
+    Smartphones: [Flagship Phones, Budget Phones, Phone Cases, Chargers]
+    Laptops: [Ultrabooks, Gaming Laptops, Laptop Bags]
+    Audio: [Headphones, Speakers, Earbuds]
+  Home & Living:
+    Kitchen: [Cookware, Small Appliances, Cutlery]
+    Furniture: [Sofas, Tables, Chairs]
+  Fashion:
+    Men's Clothing: [Shirts, Trousers, Jackets]
+    Women's Clothing: [Dresses, Blouses, Skirts]
+    Footwear: [Sneakers, Boots, Sandals]
+  Sports & Outdoors:
+    Fitness: [Yoga Mats, Dumbbells, Resistance Bands]
+    Camping: [Tents, Sleeping Bags, Backpacks]
+  Beauty & Health:
+    Skincare: [Moisturizers, Cleansers, Sunscreen]
+    Haircare: [Shampoo, Conditioner, Styling]
+
+brands:
+  - Nordic Line
+  - UrbanCraft
+  - Vertex Gear
+  - Silverline
+  - Trueform
+  - Cascade & Co
+  - Ironpeak
+  - Lumen Works
+  - Coastal Supply
+  - Rivet & Sole
+  - Bright Path
+  - Grainwood
+  - Solstice
+  - Meridian
+  - Foxfield
+  - Anchor & Ash
+  - Pinegrove
+  - Zenith Studio
+  - Harbor Craft
+  - Kestrel
+  - Oakmoor
+  - Driftline
+  - Copperhill
+  - Willowbrook
+  - Northgate
+  - Bluepeak
+  - Redstone
+  - Everline
+  - Marrow Goods
+  - Alderwood
+
+# id is the parameter "kind" — shared across products via the (id, value) node
+# identity (matches the composite uniqueness constraint in seed-neo4j.cypher).
+parameters:
+  - id: 1
+    name: Color
+    values: [Black, White, Red, Blue, Silver, Green, Beige]
+  - id: 2
+    name: Size
+    values: [XS, S, M, L, XL]
+  - id: 3
+    name: Material
+    values: [Cotton, Leather, Aluminum, Plastic, Stainless Steel]
+  - id: 4
+    name: Weight Class
+    values: [Light, Medium, Heavy]
+  - id: 5
+    name: Warranty
+    values: [1 year, 2 years, 3 years]
+
+product_adjectives: [Pro, Plus, Lite, Max, Air, Core, Edge, Studio, One, X]
+
+# rank-based Zipf-ish popularity weight = 1 / rank^zipf_s
+zipf_s: 1.1
