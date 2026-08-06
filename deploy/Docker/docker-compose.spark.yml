@@ -2,12 +2,32 @@ name: devnet-spark
 
 services:
   spark:
-    image: apache/spark:4.1.3-scala2.13-java17-python3-r-ubuntu
+    # Base apache/spark image + the Neo4j connector JAR baked in — see spark/Dockerfile
+    build:
+      context: ../../spark
+      dockerfile: Dockerfile
+    image: graph-recommendation-spark:4.1.3
     working_dir: /workspace
+    ports:
+      # Spark UI, live only while the job runs. NOTE: `docker compose run` ignores this
+      # section unless you pass --service-ports (only `up` publishes by default).
+      - "4040:4040"
     volumes:
       - ../../spark:/workspace/spark
       - ../../data:/workspace/data
-    command: ["/opt/spark/bin/spark-submit", "spark/copurchase_lift.py"]
+    env_file:
+      - path: ../../spark/.env
+        required: false   # only needed for --write-neo4j; absent is fine otherwise
+    environment:
+      # overrides .env's neo4j://localhost:7687 — inside this container "localhost"
+      # means the container itself, not the neo4j service; devnet gives container-name DNS
+      - NEO4J_URI=neo4j://neo4j:7687
+    # Full pipeline (Stage 2 + 3). For Stage 2 only, override the whole command:
+    #   docker compose -f ... run --rm spark /opt/spark/bin/spark-submit spark/copurchase_lift.py
+    command:
+      - /opt/spark/bin/spark-submit
+      - spark/copurchase_lift.py
+      - --write-neo4j
     networks:
       - devnet
 

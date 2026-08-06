@@ -39,8 +39,11 @@ baskets. Run order: catalog → transactions → Spark job → GDS embeddings.
   `deploy/Docker/docker-compose.spark.yml` (the `apache/spark` image already
   bundles PySpark, so `copurchase_lift.py` needs no custom build); running the
   script directly with a local `pip install pyspark` also works given a working
-  JDK. The Neo4j Spark connector JAR (Stage 3) is pulled via `spark.jars.packages`
-  (`org.neo4j:neo4j-connector-apache-spark_2.12` matching the PySpark version).
+  JDK. The Neo4j Spark connector JAR (Stage 3 only) is baked into the image by
+  `spark/Dockerfile`, so no submit-time flags are needed — see Stage 3.
+- The Spark UI is on port 4040, live for the duration of the run only. `docker compose
+  run` needs `--service-ports` to actually publish it — the `ports:` section alone only
+  applies to `up`.
 - Parquet is the intermediate at both hops so the Neo4j load can be re-run without
   re-running the aggregation (and vice versa).
 - Aspire does not orchestrate Spark; the pipeline is a batch job run manually or by CI.
@@ -53,10 +56,11 @@ spark/
 ├── generate_catalog.py         # synthetic catalog generator (plain Python + neo4j driver)
 ├── generate_transactions.py    # synthetic basket generator (plain Python + neo4j driver)
 ├── copurchase_lift.py          # the Spark job: baskets → scored edges → Neo4j
+├── Dockerfile                  # apache/spark + the Neo4j connector JAR baked in
 ├── requirements.txt            # neo4j, python-dotenv, pyyaml, pyarrow (no pyspark — see below)
 ├── .env.example                # NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD / NEO4J_DATABASE template
 └── README.md                   # how to run, expected output, plan-reading notes
-deploy/Docker/docker-compose.spark.yml  # runs copurchase_lift.py in the apache/spark image
+deploy/Docker/docker-compose.spark.yml  # builds spark/Dockerfile, runs the full Stage 2+3 job
 data/                           # gitignored Parquet output (transactions/, edges/)
 ```
 
@@ -177,15 +181,136 @@ runtime re-optimization, not a static plan choice. At a scale where `clean` exce
 
 Write the edge frame to `data/edges` (Parquet): `src, dst, count, lift, confidence`.
 
+### 2.7 Worked example
+
+One small example traced end to end, with round numbers instead of the real
+137,970-row run — same math, easier to follow by hand.
+
+**Input** (`data/transactions/*.parquet`) — flat order lines, no structure beyond one
+row per `(order, product)`:
+
+| order_id | customer_id | product_id | ts |
+|---|---|---|---|
+| 1 | 94 | Phone | ... |
+| 1 | 94 | Case | ... |
+| 2 | 16 | Phone | ... |
+| ... | | | |
+
+**2.1 dedupe + basket-size filter.** Say there's also a 1-item order and a 25-item
+bulk order in the mix:
+
+| order_id | kept? | why |
+|---|---|---|
+| single-item order | ❌ dropped | one item can't form a pair |
+| 25-item bulk order | ❌ dropped | would flood the self-join with noise |
+| everything else (2–20 items) | ✅ kept | this is `clean` |
+
+Transform: raw order lines → order lines belonging only to "normal-sized" baskets.
+
+**2.2 marginals.** Count how many distinct orders contain each product (out of, say,
+`n = 10` valid orders total):
+
+| product_id | cnt |
+|---|---|
+| Phone | 4 |
+| Case | 3 |
+| Bread | 8 |
+| Milk | 8 |
+
+Transform: order-lines → one row per product, "how popular is this."
+
+**2.3 self-join into pairs.** The real shape change: rows stop being "one product in
+one order" and become "two products that showed up in the *same* order." Group +
+count how many orders each pair appeared together in:
+
+| src | dst | count |
+|---|---|---|
+| Phone | Case | 3 |
+| Bread | Milk | **6** |
+
+Bread+Milk has the *higher* raw count. Sorted by `count` alone, it would look like
+the best pair — it isn't. That's the exact trap lift exists to catch: Bread and Milk
+are just both independently popular, so of course they co-occur a lot.
+
+**2.4 lift + confidence.** `lift = (count × n) / (cs × cd)`:
+
+| pair | count | cs | cd | lift | meaning |
+|---|---|---|---|---|---|
+| Phone, Case | 3 | 4 | 3 | (3×10)/(4×3) = **2.5** | co-occurs 2.5× more than chance — real signal |
+| Bread, Milk | 6 | 8 | 8 | (6×10)/(8×8) = **0.94** | co-occurs about as often as chance predicts — noise |
+
+Despite the lower raw count, Phone+Case is the meaningful pairing; Bread+Milk drops
+below 1 once popularity is divided out. This is the entire reason this pipeline
+exists instead of just counting co-purchases.
+
+Confidence is directional, unlike lift:
+
+```
+confidence(Phone → Case) = count / cs = 3/4 = 0.75   (75% of Phone buyers also bought Case)
+confidence(Case → Phone) = count / cd = 3/3 = 1.00   (100% of Case buyers also bought Phone)
+```
+
+A case is useless without a phone, but plenty of phone buyers skip the case.
+
+**2.6 symmetrize.** The self-join only emits each pair once (`src < dst`); the union
+duplicates each row with `src`/`dst` swapped and confidence recomputed per direction
+(`lift`/`count` unchanged either way):
+
+| src | dst | count | lift | confidence |
+|---|---|---|---|---|
+| Phone | Case | 3 | 2.5 | 0.75 |
+| Case | Phone | 3 | 2.5 | 1.00 |
+
+That's `data/edges/*.parquet` — matches the shape of the real run, where product
+245→250 had `lift=286.3` in both directions but `confidence=0.321` one way and
+`0.220` the other.
+
+End to end: **order lines → basket table → per-product popularity → per-pair
+co-occurrence counts → scored, directional pairs.** Each step reshapes the data into
+what the next step needs; the whole job exists to turn raw counts (which just
+flatter bestsellers) into lift (which measures whether two products are actually
+related).
+
 ## Stage 3 — Neo4j write
 
-Same script, final stage (skippable via flag so the aggregation can run standalone).
+Same script (`copurchase_lift.py`), gated behind `--write-neo4j` so the aggregation
+can run standalone.
 
-1. **Delete stale edges first** — the connector's `Overwrite` mode MERGEs matching
-   pairs but never deletes pairs that dropped below support since the last run. Mirror
-   `compute-similarity-embeddings.cypher` step 1: run
-   `MATCH ()-[r:ALSO_BOUGHT]->() DELETE r` via the connector's `script` option, then
-   write with `Append`.
+Writes via the **Neo4j Spark Connector** as originally spec'd, so the write is
+distributed across executors rather than collected to the driver. The artifact
+coordinates changed from the original plan, though:
+
+- **The JAR is baked into the image (`spark/Dockerfile`), not fetched per run.**
+  `/opt/spark/jars` is on the default classpath, so no `--packages` is needed. This
+  is a deliberate simplification: `--packages` *cannot* be set from
+  `SparkSession.config()` (Ivy resolution runs in the launcher process before the
+  driver JVM starts, so it's silently ignored and surfaces later as
+  `DATA_SOURCE_NOT_FOUND: org.neo4j.spark.DataSource`), and going through Ivy also
+  required overriding the JVM's `user.home` — the image user's home is
+  `/nonexistent` and `HOME` alone doesn't move Ivy's cache, since the JVM reads
+  `user.home` from the OS passwd entry (and on Windows, passing
+  `-Duser.home=/tmp` through `docker compose` additionally needed
+  `MSYS_NO_PATHCONV=1` to stop Git Bash rewriting that path). Baking the JAR in
+  removes all of it, plus the per-run Maven Central round-trip. Build verifies the
+  published SHA-512.
+  Only the connector's *runtime* config (`neo4j.url`, `neo4j.authentication.*`,
+  `neo4j.database`) is set on the session builder.
+
+1. **Delete stale edges first, plus create the index** — an `Append`/`CREATE` write
+   never removes pairs that dropped below `min_support` since the last run. Both run
+   via the connector's indexed `script.N` options, which execute once per write
+   operation (not per partition), in ascending suffix order, *before* the main write:
+
+```python
+.option("script.1", "MATCH ()-[r:ALSO_BOUGHT]->() DELETE r")
+.option("script.2", "CREATE INDEX also_bought_lift_idx IF NOT EXISTS FOR ()-[r:ALSO_BOUGHT]-() ON (r.lift)")
+```
+
+Note the older single-`script`-with-semicolons form is deprecated, and `script` and
+`script.N` cannot be combined. The index mirrors where `similar_to_score_idx` lives
+(in the compute step, not the base seed script — the relationship type doesn't exist
+until this stage creates it) and `IF NOT EXISTS` makes re-running harmless.
+
 2. Relationship write:
 
 ```python
@@ -204,14 +329,29 @@ Same script, final stage (skippable via flag so the aggregation can run standalo
   .save())
 ```
 
-3. Index, added to the seed script:
+`Product.productId` uniqueness constraint already exists (from `seed-neo4j.cypher`).
 
-```cypher
-CREATE INDEX also_bought_lift_idx IF NOT EXISTS
-FOR ()-[r:ALSO_BOUGHT]-() ON (r.lift);
-```
+3. **JVM hang after the write.** The connector's Neo4j driver leaves non-daemon
+   threads running, so `spark.stop()` *and* the JVM's own shutdown both block
+   forever — `spark-submit` hangs on an otherwise-successful job. Two non-obvious
+   parts:
+   - The hang is *inside* `spark.stop()`, so a force-exit placed after the graceful
+     stop never executes.
+   - Killing only the Python process (`os._exit`) is insufficient: the JVM is
+     `spark-submit`'s (and the container's) main process. That alone yields a race —
+     sometimes the JVM notices the dead py4j socket and exits with a spurious
+     non-zero code, sometimes it hangs indefinitely.
 
-`Product.productId` uniqueness constraint already exists — required by `node.keys`.
+   So on the `--write-neo4j` success path only, immediately after the write and
+   before reaching `spark.stop()`: flush stdio, kill the JVM via
+   `spark._jvm.System.exit(0)` (guarded — the gateway dies with it), then
+   `os._exit(0)`. The write is already committed server-side. Failures still fall
+   through to the graceful stop, preserving tracebacks and exit codes.
+
+Environment: connection settings come from `spark/.env` via Compose's `env_file`,
+with `NEO4J_URI` overridden to the `neo4j` service's container-name DNS.
+`python-dotenv` is loaded best-effort for local runs only. With the JAR baked into
+the image, the whole pipeline is a single flagless command — see `spark/README.md`.
 
 ## Stage 4 — API blend
 
@@ -284,6 +424,10 @@ scope for a batch demo).
 | Spark runtime | Bare PySpark `local[*]` | Demo scale; no infra to maintain |
 | Catalog seed | New `generate_catalog.py`, plain Python | Repo has zero node-creation Cypher today — only constraints/indexes exist |
 | Generator | Plain Python, graph-correlated, Zipf popularity | Uniform random data makes lift ≈ 1.0 everywhere |
-| Stale edges | Delete-then-append | Connector `Overwrite` never deletes dropped pairs |
+| Stale edges | Delete-then-append, via connector `script.1` | `Append`/`Overwrite` never deletes dropped pairs |
 | Rel write parallelism | `coalesce(1)` | Concurrent partitions deadlock on node locks |
-| Docker image (if ever) | `apache/spark` | `bitnami/spark` moved to `bitnamilegacy`, unmaintained |
+| Docker image | `apache/spark:4.1.3-scala2.13-…` | `bitnami/spark` unmaintained (moved to `bitnamilegacy`); Scala 2.13 required by connector 6.x |
+| Neo4j write path | Spark Connector `org.neo4j.connectors:spark:6.0.0-s_2.13` | Distributed write, no driver-side `collect()`; 6.0.0 supports Spark 4.x on Scala 2.13, so no Spark downgrade |
+| Connector on classpath | Baked into image via `spark/Dockerfile`, not `--packages` | Kills 3 runtime flags at once (Ivy `user.home` hack, its Windows path-conversion workaround, per-run Maven fetch); `--packages` can't be set from `SparkSession.config()` anyway |
+| Spark UI | `ports: 4040:4040` + `--service-ports` on `run`, no history server | Live during the run is enough to show stages/DAG; event log + history server is more infra than a demo needs |
+| Post-write exit | `System.exit(0)` + `os._exit(0)` before `spark.stop()`, `--write-neo4j` only | Connector's non-daemon threads hang the JVM; killing only Python leaves the JVM (container PID 1) stuck |
