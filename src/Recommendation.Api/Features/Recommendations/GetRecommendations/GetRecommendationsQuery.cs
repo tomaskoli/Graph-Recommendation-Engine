@@ -4,4 +4,8 @@ using Recommendation.Api.Features.Recommendations.Contracts;
 
 namespace Recommendation.Api.Features.Recommendations.GetRecommendations;
 
-public record GetRecommendationsQuery(int ProductId, int Page, int PageSize) : IRequest<Result<RecommendationDto>>;
+public record GetRecommendationsQuery(
+    int ProductId,
+    int Page,
+    int PageSize,
+    RecommendationStrategy Strategy = RecommendationStrategy.Hybrid) : IRequest<Result<RecommendationDto>>;

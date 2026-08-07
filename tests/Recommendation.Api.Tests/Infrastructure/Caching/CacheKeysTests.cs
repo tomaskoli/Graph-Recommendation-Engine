@@ -1,3 +1,4 @@
+using Recommendation.Api.Features.Recommendations.Contracts;
 using Recommendation.Api.Infrastructure.Caching;
 
 namespace Recommendation.Api.Tests.Infrastructure.Caching;
@@ -5,12 +6,12 @@ namespace Recommendation.Api.Tests.Infrastructure.Caching;
 public class CacheKeysTests
 {
     [Theory]
-    [InlineData(123, 1, 10, "recs:123:1:10")]
-    [InlineData(456, 2, 20, "recs:456:2:20")]
-    [InlineData(1, 100, 50, "recs:1:100:50")]
-    public void Recommendations_GeneratesCorrectKey(int productId, int page, int pageSize, string expected)
+    [InlineData(123, RecommendationStrategy.Hybrid, 1, 10, "recs:123:hybrid:1:10")]
+    [InlineData(456, RecommendationStrategy.Content, 2, 20, "recs:456:content:2:20")]
+    [InlineData(1, RecommendationStrategy.Behavioral, 100, 50, "recs:1:behavioral:100:50")]
+    public void Recommendations_GeneratesCorrectKey(int productId, RecommendationStrategy strategy, int page, int pageSize, string expected)
     {
-        var key = CacheKeys.Recommendations(productId, page, pageSize);
+        var key = CacheKeys.Recommendations(productId, strategy, page, pageSize);
 
         Assert.Equal(expected, key);
     }

@@ -11,6 +11,9 @@ import {
 // Empty string means relative URLs (for Docker/nginx proxy)
 OpenAPI.BASE = import.meta.env.VITE_API_URL ?? '';
 
+// Matches RecommendationStrategy in the API - not codegen'd since the endpoint takes a plain string
+export type RecommendationStrategy = 'content' | 'behavioral' | 'hybrid';
+
 // Re-export all types and services from generated client
 export type {
   ProductDto,
@@ -64,8 +67,8 @@ export const api = {
     return result.items;
   },
 
-  getRecommendations: (productId: number, page = 1, pageSize = 50) =>
-    RecommendationsService.getRecommendations({ productId, page, pageSize }),
+  getRecommendations: (productId: number, strategy: RecommendationStrategy = 'hybrid', page = 1, pageSize = 50) =>
+    RecommendationsService.getRecommendations({ productId, strategy, page, pageSize }),
 
   getSegments: async (page = 1, pageSize = 20) => {
     const result = await SegmentsService.getAllSegments({ page, pageSize });

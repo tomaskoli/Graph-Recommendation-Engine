@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ProductDto, ScoredProductDto, ProductDetailDto } from '../services/api';
+import type { ProductDto, ScoredProductDto, ProductDetailDto, RecommendationStrategy } from '../services/api';
 import { api } from '../services/api';
 import { RecommendationList } from '../components/RecommendationList';
 import './ProductPage.css';
@@ -10,24 +10,35 @@ interface ProductPageProps {
   onBack: () => void;
 }
 
+const STRATEGIES: { value: RecommendationStrategy; label: string }[] = [
+  { value: 'hybrid', label: 'Hybrid' },
+  { value: 'content', label: 'Content' },
+  { value: 'behavioral', label: 'Behavioral' },
+];
+
 export function ProductPage({ productId, onProductClick, onBack }: ProductPageProps) {
   const [product, setProduct] = useState<ProductDetailDto | null>(null);
   const [similarProducts, setSimilarProducts] = useState<ScoredProductDto[]>([]);
+  const [strategy, setStrategy] = useState<RecommendationStrategy>('hybrid');
   const [loading, setLoading] = useState(true);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      api.getProduct(productId),
-      api.getRecommendations(productId)
-    ])
-      .then(([productData, recommendationsData]) => {
-        setProduct(productData as ProductDetailDto);
-        setSimilarProducts(recommendationsData.similarProducts.items);
-      })
+    setStrategy('hybrid');
+    api.getProduct(productId)
+      .then(productData => setProduct(productData as ProductDetailDto))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [productId]);
+
+  useEffect(() => {
+    setRecommendationsLoading(true);
+    api.getRecommendations(productId, strategy)
+      .then(recommendationsData => setSimilarProducts(recommendationsData.similarProducts.items))
+      .catch(console.error)
+      .finally(() => setRecommendationsLoading(false));
+  }, [productId, strategy]);
 
   if (loading) {
     return <div className="product-page__loading">Loading...</div>;
@@ -75,18 +86,31 @@ export function ProductPage({ productId, onProductClick, onBack }: ProductPagePr
       )}
 
       <div className="product-page__recommendations">
-        <RecommendationList
-          title="Similar Products"
-          products={similarProducts}
-          onProductClick={onProductClick}
-          showScore
-        />
-        <RecommendationList
-          title="Similar Products from Different Brands"
-          products={differentBrandProducts}
-          onProductClick={onProductClick}
-          showScore
-        />
+        <div className="product-page__strategy-selector">
+          {STRATEGIES.map(s => (
+            <button
+              key={s.value}
+              className={`product-page__strategy-button${strategy === s.value ? ' product-page__strategy-button--active' : ''}`}
+              onClick={() => setStrategy(s.value)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className={recommendationsLoading ? 'product-page__recommendations-loading' : undefined}>
+          <RecommendationList
+            title="Similar Products"
+            products={similarProducts}
+            onProductClick={onProductClick}
+            showScore
+          />
+          <RecommendationList
+            title="Similar Products from Different Brands"
+            products={differentBrandProducts}
+            onProductClick={onProductClick}
+            showScore
+          />
+        </div>
       </div>
     </div>
   );

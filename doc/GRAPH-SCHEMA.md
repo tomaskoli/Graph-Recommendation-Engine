@@ -2,7 +2,7 @@
 
 ## Overview
 
-The graph models a product catalog with relationships between products, brands, categories, and parameters. The core feature is the `SIMILAR_TO` relationship that enables product recommendations based on similarity scores.
+The graph models a product catalog with relationships between products, brands, categories, and parameters. Recommendations are powered by two independent relationships: `SIMILAR_TO` (content signal, from GDS) and `ALSO_BOUGHT` (behavioral signal, from the Spark co-purchase pipeline — see [SPARK-PIPELINE.md](SPARK-PIPELINE.md)).
 
 ## Graph Visualization
 
@@ -29,6 +29,9 @@ The graph models a product catalog with relationships between products, brands, 
                              │ Parameter │
                              └───────────┘
 ```
+
+`ALSO_BOUGHT` is a `Product`-to-`Product` self-relationship like `SIMILAR_TO`, omitted above for space —
+see the [Relationships](#relationships) section below.
 
 ## Node Types
 
@@ -87,18 +90,29 @@ Groups categories into logical catalog segments.
 | `segmentId` | INTEGER | ✅ | Unique identifier |
 | `segmentName` | STRING | ❌ | Segment display name |
 
-> **Note**: This node is not yet ingested in the graph.
-
 ## Relationships
 
 ### SIMILAR_TO
 
-Connects products that are similar to each other. This is the core relationship for the recommendation engine.
+Connects products that are similar to each other. This is the content signal for the recommendation engine.
 
 - **Direction**: `(Product)-[:SIMILAR_TO]->(Product)`
 - **Properties**:
   - `score` (FLOAT, indexed) - Similarity score between 0 and 1
   - `sameBrand` (BOOLEAN) - Indicates if both products share the same brand
+
+### ALSO_BOUGHT
+
+Connects products that are frequently co-purchased. This is the behavioral signal for the
+recommendation engine, computed offline by the Spark pipeline (see
+[SPARK-PIPELINE.md](SPARK-PIPELINE.md)) — never written by the API.
+
+- **Direction**: `(Product)-[:ALSO_BOUGHT]->(Product)`
+- **Properties**:
+  - `count` (INTEGER) - Number of orders containing both products
+  - `lift` (FLOAT, indexed) - `(count × totalOrders) / (cntA × cntB)`; > 1.0 means the pair
+    co-occurs more than chance. Symmetric per pair.
+  - `confidence` (FLOAT) - `count / cntA`; directional (A→B ≠ B→A)
 
 ### MADE_BY
 
@@ -134,5 +148,3 @@ Assigns a category to a catalog segment.
 
 - **Direction**: `(Category)-[:IN_SEGMENT]->(CatalogSegment)`
 - **Properties**: None
-
-> **Note**: This relationship is not yet ingested in the graph.

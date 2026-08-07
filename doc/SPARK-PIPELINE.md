@@ -378,11 +378,41 @@ ORDER BY score DESC SKIP $skip LIMIT $take
 - `UNION ALL`, not `UNION` — the branches never produce identical rows; `UNION`'s
   dedup is wasted work.
 - `1 - 1/lift` squashes unbounded lift into 0..1 so the two signals are commensurable.
-- `wContent` / `wBehavior` are hardcoded in `RecommendationConstants` (start 0.5/0.5)
+- `wContent` / `wBehavior` are hardcoded in `RecommendationConstants` (0.5/0.5)
   next to `MinSimilarityScore` — no config knobs for weights nobody tunes.
 - Cache key gains the strategy segment: `recs:{productId}:{strategy}:{page}:{pageSize}`.
 - A product appearing on both edges scores from both branches — intentional: agreement
   between independent signals is the strongest recommendation.
+- `content` and `behavioral` are the same query with one branch of the `CALL` dropped (and
+  their own single-signal count query) — not just the hybrid query with a weight zeroed out,
+  so each strategy only pays for the edge type it needs.
+- `ALSO_BOUGHT` carries no `sameBrand` property (unlike `SIMILAR_TO`, where GDS writes it
+  directly) — `behavioral` and `hybrid` derive it by comparing `p` and the candidate's
+  `MADE_BY` brand inline.
+- The count query for `hybrid` uses `UNION` (not `UNION ALL`) to get a *distinct*-product
+  total for pagination — the scoring query still needs `UNION ALL` per the point above, so
+  the two aren't the same query.
+- Invalid `strategy` values 400 at the endpoint, before touching Neo4j.
+
+### 4.1 Worked example
+
+Real edge data for `productId=409` → `productId=410` (a shampoo pair, both signals present):
+
+| Edge | Property | Value |
+|------|----------|-------|
+| `SIMILAR_TO` | `score` | `0.9618094563484192` |
+| `ALSO_BOUGHT` | `lift` | `20.920026598546297` (348 shared orders) |
+
+```
+content contribution    = 0.9618094563484192 × 0.5            = 0.48090473
+behavioral contribution = (1 − 1/20.920026598546297) × 0.5
+                         = (1 − 0.04780) × 0.5 = 0.95220 × 0.5  = 0.47610
+hybrid score             = 0.48090473 + 0.47610                = 0.95700...
+```
+
+The API returns `0.9570041849485741` for this pair under `strategy=hybrid`, `0.9618094563484192`
+under `strategy=content`, and `20.920026598546297` under `strategy=behavioral` — same edges,
+three different response shapes.
 
 ## Spark concepts demonstrated
 
@@ -431,3 +461,5 @@ scope for a batch demo).
 | Connector on classpath | Baked into image via `spark/Dockerfile`, not `--packages` | Kills 3 runtime flags at once (Ivy `user.home` hack, its Windows path-conversion workaround, per-run Maven fetch); `--packages` can't be set from `SparkSession.config()` anyway |
 | Spark UI | `ports: 4040:4040` + `--service-ports` on `run`, no history server | Live during the run is enough to show stages/DAG; event log + history server is more infra than a demo needs |
 | Post-write exit | `System.exit(0)` + `os._exit(0)` before `spark.stop()`, `--write-neo4j` only | Connector's non-daemon threads hang the JVM; killing only Python leaves the JVM (container PID 1) stuck |
+| `strategy` query values | `content`/`behavioral`/`hybrid`, invalid → 400 at the endpoint | Fails fast before a Neo4j round-trip; matches the enum used internally |
+| `sameBrand` on `ALSO_BOUGHT` results | Derived inline (`p`'s brand vs candidate's brand), not stored on the edge | Only `SIMILAR_TO` has it as a GDS-written property; storing it on `ALSO_BOUGHT` too would duplicate data already reachable via `MADE_BY` |

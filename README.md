@@ -1,6 +1,6 @@
 # Graph Recommendation Engine
 
-**Product recommendation** app using Neo4j Graph Data Science (GDS).
+**Product recommendation** app using Neo4j Graph Data Science (GDS) and Apache Spark.
 
 ## Tech Stack
 
@@ -9,13 +9,16 @@
 | Runtime | .NET 10, ASP.NET Core Minimal APIs |
 | Orchestration | .NET Aspire 13.1 |
 | Graph Database | Neo4j 2025.10.1 + GDS Plugin |
+| Batch Processing | Apache Spark 4.1.3 (co-purchase lift, Dockerized) |
 | Cache | Redis 8 |
 | Frontend | React 18 + Vite |
 | Containerization | Docker |
 
 ## Features
 
-- **Graph-Based Recommendations** - ML-powered similarity using Neo4j GDS (FastRP + kNN)
+- **Graph-Based Recommendations** - blends two independent signals: content similarity from
+  Neo4j GDS (FastRP + kNN) and co-purchase behavior from an Apache Spark batch pipeline
+  (see [Spark Pipeline](doc/SPARK-PIPELINE.md))
 - **Vertical Slice Architecture** - Feature-based organization with MediatR
 - **.NET Aspire** - Cloud-ready orchestration with service discovery
 - **Caching** - Redis caching for recommendation results
@@ -25,16 +28,16 @@
 ## Architecture
 
 ```
-┌─────────────────┐                              ┌─────────────────┐
-│      React      │                              │     Neo4j       │
-│      (UI)       │◀────────────────────────────▶│   + GDS         │
-└─────────────────┘                              └─────────────────┘
-        │                                                ▲
-        │                                                │
-        ▼                                                │
+┌─────────────────┐                              ┌─────────────────┐      ┌─────────────────┐
+│      React      │                              │     Neo4j       │◀─────│  Apache Spark   │
+│      (UI)       │◀────────────────────────────▶│   + GDS         │      │ (batch, offline)│
+└─────────────────┘                              └─────────────────┘      └─────────────────┘
+        │                                                ▲               writes ALSO_BOUGHT;
+        │                                                │               GDS writes SIMILAR_TO
+        ▼                                                │               independently
 ┌─────────────────┐                                      │
 │ Recommendation  │──────────────────────────────────────┘
-│      API        │
+│      API        │        blends both signals at query time
 └─────────────────┘
         │
         ▼
@@ -71,6 +74,7 @@ Graph-Recommendation-Engine/
 │   │   └── Infrastructure/           # Neo4j, Redis clients
 │   ├── Recommendation.ServiceDefaults/ # Aspire defaults
 │   └── Recommendation.Web/           # React frontend
+├── spark/                            # Co-purchase lift pipeline (see doc/SPARK-PIPELINE.md)
 ├── deploy/
 │   ├── Docker/                       # Docker Compose files
 │   └── scripts/                      # Cypher scripts (GDS similarity)
@@ -120,7 +124,7 @@ Graph-Recommendation-Engine/
 ### Recommendations (`/api/recommendations`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/?productId={id}` | ML-based similar products (GDS) |
+| GET | `/?productId={id}&strategy={content\|behavioral\|hybrid}` | Similar products; `strategy` defaults to `hybrid` (blends GDS similarity + Spark co-purchase lift) |
 
 ### Search (`/api/search`)
 | Method | Endpoint | Description |
@@ -130,7 +134,7 @@ Graph-Recommendation-Engine/
 ## Caching
 
 - **TTL:** 30 minutes (configurable)
-- **Cache Key Pattern:** `recs:{productId}:{page}:{pageSize}`
+- **Cache Key Pattern:** `recs:{productId}:{strategy}:{page}:{pageSize}`
 
 ## Getting Started
 
@@ -150,11 +154,24 @@ docker-compose -f deploy/Docker/docker-compose.redis.yml up -d
 
 ### Initialize Neo4j
 
+The graph starts empty — constraints only, no nodes. Run in order (full details, options,
+and troubleshooting in [spark/README.md](spark/README.md) and
+[Spark Pipeline](doc/SPARK-PIPELINE.md)):
+
 ```bash
-# Seed data (in Neo4j Browser)
+# 1. Constraints/indexes (in Neo4j Browser)
 # File: deploy/scripts/seed-neo4j.cypher
 
-# Run GDS similarity computation (in Neo4j Browser)
+# 2. Synthetic catalog -> Neo4j (Product, Category, Brand, Parameter, CatalogSegment)
+python spark/generate_catalog.py
+
+# 3. Synthetic transactions -> Parquet
+python spark/generate_transactions.py
+
+# 4. Spark: co-purchase lift -> Parquet + Neo4j (ALSO_BOUGHT), via Docker
+docker compose -f deploy/Docker/docker-compose.spark.yml run --rm --service-ports spark
+
+# 5. GDS similarity (SIMILAR_TO) - run in Neo4j Browser
 # File: deploy/scripts/compute-similarity-embeddings.cypher
 ```
 
@@ -196,6 +213,7 @@ docker-compose -f deploy/Docker/docker-compose.services.yml up -d
 | Swagger | http://localhost:5188/swagger | API documentation |
 | React App | http://localhost:5173 | Frontend |
 | Neo4j Browser | http://localhost:7474 | Graph visualization |
+| Spark UI | http://localhost:4040 | Apache Spark dashboard |
 
 ## Documentation
 
