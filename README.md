@@ -28,13 +28,13 @@
 ## Architecture
 
 ```
-┌─────────────────┐                              ┌─────────────────┐      ┌─────────────────┐
-│      React      │                              │     Neo4j       │◀─────│  Apache Spark   │
-│      (UI)       │◀────────────────────────────▶│   + GDS         │      │ (batch, offline)│
-└─────────────────┘                              └─────────────────┘      └─────────────────┘
-        │                                                ▲               writes ALSO_BOUGHT;
-        │                                                │               GDS writes SIMILAR_TO
-        ▼                                                │               independently
+┌─────────────────┐                               ┌─────────────────┐       ┌─────────────────┐
+│      React      │                               │     Neo4j       │◀─────│  Apache Spark    │
+│      (UI)       │◀────────────────────────────▶│   + GDS         │       │ (batch, offline)│
+└─────────────────┘                               └─────────────────┘       └─────────────────┘
+        │                                                ▲                   writes ALSO_BOUGHT;
+        │                                                │                   GDS writes SIMILAR_TO
+        ▼                                                │                   independently
 ┌─────────────────┐                                      │
 │ Recommendation  │──────────────────────────────────────┘
 │      API        │        blends both signals at query time
