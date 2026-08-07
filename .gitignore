@@ -62,3 +62,10 @@ appsettings.Development.json
 
 # User secrets (if not using dotnet user-secrets)
 secrets.json
+
+# Spark pipeline intermediate output (see doc/SPARK-PIPELINE.md)
+/data/
+
+# Python (spark/)
+__pycache__/
+*.pyc

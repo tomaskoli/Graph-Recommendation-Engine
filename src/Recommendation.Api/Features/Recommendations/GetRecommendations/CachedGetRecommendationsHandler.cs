@@ -36,7 +36,7 @@ public class CachedGetRecommendationsHandler : IRequestHandler<GetRecommendation
             return await _innerHandler.Handle(request, cancellationToken);
         }
 
-        var cacheKey = CacheKeys.Recommendations(request.ProductId, request.Page, request.PageSize);
+        var cacheKey = CacheKeys.Recommendations(request.ProductId, request.Strategy, request.Page, request.PageSize);
 
         // Try cache first
         var cached = await _cache.GetAsync<RecommendationDto>(cacheKey, cancellationToken);

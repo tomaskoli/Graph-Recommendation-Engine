@@ -73,7 +73,7 @@ public class CachedGetRecommendationsHandlerTests
         await _sut.Handle(query, CancellationToken.None);
 
         await _cacheService.Received(1).SetAsync(
-            Arg.Is<string>(k => k == CacheKeys.Recommendations(123, 1, 10)),
+            Arg.Is<string>(k => k == CacheKeys.Recommendations(123, RecommendationStrategy.Hybrid, 1, 10)),
             dto,
             TimeSpan.FromMinutes(30),
             Arg.Any<CancellationToken>());

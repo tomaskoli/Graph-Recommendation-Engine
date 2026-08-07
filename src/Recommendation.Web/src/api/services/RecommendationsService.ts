@@ -15,10 +15,12 @@ export class RecommendationsService {
         productId,
         page,
         pageSize,
+        strategy,
     }: {
         productId: number | string,
         page: number | string,
         pageSize: number | string,
+        strategy?: string,
     }): CancelablePromise<RecommendationDto> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -27,6 +29,10 @@ export class RecommendationsService {
                 'productId': productId,
                 'page': page,
                 'pageSize': pageSize,
+                'strategy': strategy,
+            },
+            errors: {
+                400: `Bad Request`,
             },
         });
     }

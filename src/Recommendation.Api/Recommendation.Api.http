@@ -34,7 +34,7 @@ Accept: {{accept}}
 ###
 
 ### Get products by category
-GET {{baseUrl}}/api/categories/1/products?page=1&pageSize=20
+GET {{baseUrl}}/api/categories/3/products?page=1&pageSize=20
 Accept: {{accept}}
 
 ###
@@ -58,11 +58,13 @@ Accept: {{accept}}
 ###
 
 ### ========================================
-### Recommendations (GDS-powered similarity)
+### Recommendations (GDS similarity + Spark co-purchase lift)
 ### ========================================
+# strategy=content    -> SIMILAR_TO only (GDS FastRP + kNN). Run deploy/scripts/compute-similarity-embeddings.cypher first.
+# strategy=behavioral -> ALSO_BOUGHT only (Spark lift). Run the spark/ pipeline first, see spark/README.md.
+# strategy=hybrid      -> blends both, weighted (default when strategy is omitted).
 
-### Get recommendations for a product
-# Note: Run deploy/scripts/compute-similarity.cypher first
+### Get recommendations for a product (default strategy: hybrid)
 GET {{baseUrl}}/api/recommendations?productId=1&page=1&pageSize=10
 Accept: {{accept}}
 
@@ -76,6 +78,30 @@ Accept: {{accept}}
 
 ### Get recommendations page 2 (for large result sets)
 GET {{baseUrl}}/api/recommendations?productId=1&page=2&pageSize=10
+Accept: {{accept}}
+
+###
+
+### Content-based only (GDS similarity score)
+GET {{baseUrl}}/api/recommendations?productId=1&page=1&pageSize=10&strategy=content
+Accept: {{accept}}
+
+###
+
+### Behavioral only (Spark co-purchase lift)
+GET {{baseUrl}}/api/recommendations?productId=1&page=1&pageSize=10&strategy=behavioral
+Accept: {{accept}}
+
+###
+
+### Hybrid (blended, explicit)
+GET {{baseUrl}}/api/recommendations?productId=1&page=1&pageSize=10&strategy=hybrid
+Accept: {{accept}}
+
+###
+
+### Invalid strategy -> 400 Bad Request
+GET {{baseUrl}}/api/recommendations?productId=1&page=1&pageSize=10&strategy=bogus
 Accept: {{accept}}
 
 ###
